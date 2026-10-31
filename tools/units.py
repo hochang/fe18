@@ -1,0 +1,177 @@
+"""Reference data: classes and units (Game8 EN, cross-checked with JP/CN guides).
+
+Skill ranks per class are what Game8's "Best Classes for Each Character" page
+prints for each class card. Game8 doesn't define the Primary/Secondary
+notation, so treat them as the ranks to train before reclassing.
+"""
+
+LORDS = {
+    "cai": {"name": "Cai", "cn": "凯伊"},
+    "dietrich": {"name": "Dietrich", "cn": "迪托利希"},
+    "theodora": {"name": "Theodora", "cn": "赛奥朵拉"},
+    "leda": {"name": "Leda", "cn": "蕾达"},
+}
+
+# tier, skill ranks, unlock note
+CLASSES = {
+    # Basic (starting classes, no requirement; from a CN fan wiki)
+    "Commoner": ("Basic", "none", "starting class"),
+    "Noble": ("Basic", "none", "starting class"),
+    # Beginner (ideal Lv5, Renown 1)
+    "Gladiator": ("Beginner", "Gauntlet D / Axe D / Sword D", ""),
+    "Hunter": ("Beginner", "Bow D / Sword D", ""),
+    "Soldier": ("Beginner", "not listed by Game8 (spear infantry)", ""),
+    "Ornius Rider": ("Beginner", "Riding E+; Axe D / Spear D", ""),
+    "Diviner": ("Beginner", "White D / Black D", ""),
+    # Specialty (ideal Lv20, Renown 4)
+    "Myrmidon": ("Specialty", "Sword C", ""),
+    "Brigand": ("Specialty", "Axe C / Sword C", ""),
+    "Pugilist": ("Specialty", "not listed by Game8 (gauntlet infantry)", ""),
+    "Archer": ("Specialty", "Bow C", ""),
+    "Rogue": ("Specialty", "Bow C / Sword C", ""),
+    "Armored Knight": ("Specialty", "Heavy Armor E+; Axe C / Spear C", ""),
+    "Light Cavalry": ("Specialty", "Riding D; Spear C / Sword C", ""),
+    "Charioteer": ("Specialty", "Riding D, Bow C", "boosted growths, can't dodge"),
+    "Armored Ornius Rider": ("Specialty", "Riding D; Axe C / Spear C", ""),
+    "Wing Soldier": ("Specialty", "Flying D; Spear C / Sword C", "female only"),
+    "Priest": ("Specialty", "White C", ""),
+    "Shaman": ("Specialty", "Black C", ""),
+    # Advanced (ideal Lv35, Renown 8)
+    "Shido": ("Advanced", "Sword B", ""),
+    "Dancer": ("Advanced", "Bow B / Sword B", "unlock on Leda: Ch9 subquest 'Great Dancer's Successor' (by 10/15)"),
+    "Warrior": ("Advanced", "Gauntlet B / Axe B / Sword B", ""),
+    "Blacksmith": ("Advanced", "not listed by Game8", "unlock on Dietrich: enhance Combat Arts 10 times at the Smyrnos temple"),
+    "Sniper": ("Advanced", "Bow B", ""),
+    "Forest Knight": ("Advanced", "Riding D, Bow B", ""),
+    "Ranger": ("Advanced", "Bow B / Sword B", "unlock on Dietrich: Renown 10 challenge, or Leda: tavern show #4"),
+    "Guardian": ("Advanced", "Spear B", "unlock on Dietrich: Renown 6 challenge, or Theodora: 10 War Preparations tasks"),
+    "Dreadnought": ("Advanced", "Heavy Armor D; Axe B / Spear B", ""),
+    "Bardinger": ("Advanced", "Riding C; Spear C / Sword B", ""),
+    "Cataphract": ("Advanced", "Heavy Armor E+, Riding D; Axe B / Spear B", "unlock on Theodora: 8 War Preparations tasks by Ch8"),
+    "Caladrius": ("Advanced", "Riding D, Black B", "unlock on Cai: 'Special Request from Pop' (Renown 7)"),
+    "Dragoon": ("Advanced", "Flying C; Axe B / Spear B", "unlock on Cai: 'Special Request from Mom' (Renown 8), or Theodora: 14 War Preparations tasks"),
+    "Ovate": ("Advanced", "Black B", ""),
+    "Bishop": ("Advanced", "White B", ""),
+    "Troubadour": ("Advanced", "Riding D; White B / Black B", "unlock on Cai: 'White-Maned Demon's Request' (Renown 10), or Leda: tavern show #4"),
+    "Elephant Rider": ("Advanced", "Elephant License", "Part III only; boosted growths, can't dodge"),
+    # Master (ideal Lv45, Part III gods' requests from Section 2–3)
+    "Swordmaster": ("Master", "Sword A", "Mars's request"),
+    "High Savant": ("Master", "Riding D, Black D", "Smyrnos's request; +15 Str/Mag growth"),
+    "Battlemaster": ("Master", "Gauntlet A / Axe A / Sword A", ""),
+    "War Monk": ("Master", "White D, Gauntlet B", "Aurora's request"),
+    "Bow Knight": ("Master", "Riding D, Bow A", "Kalla's request"),
+    "Great Knight": ("Master", "Heavy Armor D, Riding D; Axe A / Spear A", "Credna's request"),
+    "Valkyrium": ("Master", "Riding D; White A / Black A", "Jurah's request"),
+    "Bow Adept": ("Master", "Bow A", ""),
+    "Shadow Seeker": ("Master", "Bow A / Sword A", ""),
+    "Sentinel": ("Master", "Spear A", ""),
+    "Castle Knight": ("Master", "Heavy Armor C; Axe A / Spear A", ""),
+    "Orichaldia": ("Master", "Riding B; Spear A / Sword A", ""),
+    "Celestial Trooper": ("Master", "Flying C; Spear A / Sword A", "female only"),
+    "Bau Lord": ("Master", "Flying C; Axe A / Spear A", ""),
+    "Druid": ("Master", "Black A", ""),
+    "Wiseman": ("Master", "White A", ""),
+    # Divine (Part III Section 4+, one unit per class, 100% exam pass rate)
+    "The Blade": ("Divine", "Sword S", "Demonic Swordguard — Chamber of Distortion"),
+    "The Apsara": ("Divine", "Bow C, Sword A", "Muses' Necklace — Maiden's Chambers"),
+    "The Eternal": ("Divine", "Gauntlet S, Axe S", "Scales of Judgement — Prophet's Chambers"),
+    "The Godhand": ("Divine", "White C, Gauntlet S", "Emperor's Sash — Disciples' Chambers"),
+    "The Calamity": ("Divine", "Bow S / Sword S", "Crystal of Darkness — Chamber of Distortion"),
+    "The Trident": ("Divine", "Spear S", "Trident — Disciples' Chambers"),
+    "The Cavalier": ("Divine", "Riding A; Axe S / Spear S / Sword S", "Divinium Saddle — Chamber of Sirius"),
+    "The Avatar": ("Divine", "White S / Black S", "Lotus of Reincarnation — Prophet's Chambers"),
+}
+
+TIER_ORDER = ["Basic", "Beginner", "Specialty", "Advanced", "Master", "Divine"]
+
+# Chinese class names as used in CN guides. Matched by class role and unlock
+# quest, so a few (marked ?) are inferences.
+CLASS_CN = {
+    "Commoner": "平民", "Noble": "贵族", "Gladiator": "斗士", "Hunter": "猎兵", "Soldier": "士兵",
+    "Ornius Rider": "飞鸵兵", "Diviner": "诅咒师", "Myrmidon": "剑客", "Brigand": "土匪",
+    "Archer": "弓箭手", "Rogue": "盗贼", "Armored Knight": "重装步兵", "Charioteer": "战车兵",
+    "Priest": "牧师", "Shaman": "萨满", "Shido": "侍道", "Warrior": "勇士", "Sniper": "狙击手",
+    "Forest Knight": "森林骑士", "Bishop": "主教", "Ranger": "游侠", "Guardian": "卫士",
+    "Blacksmith": "锻造师", "Dancer": "舞者", "Caladrius": "神鸵兵", "Dragoon": "驭龙兵",
+    "Troubadour": "游唱诗人", "Ovate": "先知", "Dreadnought": "巨型重甲兵?",
+    "Swordmaster": "刀剑将领", "Battlemaster": "战争将领", "Bow Knight": "弓骑手",
+    "Bau Lord": "飞龙将领", "Druid": "德鲁伊", "War Monk": "武僧", "Bow Adept": "宗师射手",
+    "Sentinel": "圣枪师", "Castle Knight": "要塞", "Wiseman": "贤士", "Orichaldia": "奥利哈铁骑",
+    "Valkyrium": "瓦尔基里姆", "Shadow Seeker": "探影者", "Celestial Trooper": "圣天翼兵",
+    "Great Knight": "英勇骑士?", "High Savant": "高阶墓志铭?",
+    "The Blade": "刃辉神将", "The Apsara": "神乐神将", "The Eternal": "永霸神将",
+    "The Trident": "岚枪神将?", "The Cavalier": "烈俊神将?", "The Calamity": "绝祸神将?",
+    "The Godhand": "破拳神将?", "The Avatar": "圣转神将?",
+}
+
+# name: (game8 tier, cn, abilities, boons, banes)
+UNITS = {
+    "Eshmel": ("Lord", "伊修玛尔", "Scorching Sun, Light of Salvation", "Authority, Spear", "—"),
+    "Cai": ("Lord", "凯伊", "Brio (Move +1), Flamekeeper", "White Magic, Riding, Spear, Sword", "Bow, Flying"),
+    "Dietrich": ("Lord", "迪托利希", "Murderous Intent (+5 Crit when attacking first), Bestial Impulse, Diadem of the Endless", "Infantry, Sword", "White Magic"),
+    "Theodora": ("Lord", "赛奥朵拉", "Royal Resolve (30% chance to halve damage), Direct Hit, Unstoppable Force", "Authority, White Magic, Spear", "Black Magic"),
+    "Leda": ("Lord", "蕾达", "Blindside, Improviso", "Bow, White Magic, Infantry, Sword", "Spear"),
+    "Tialla": ("B", "媞雅拉", "Tactician's Wit, Tactician's Insight", "Authority, White Magic, Black Magic", "Sword"),
+    "Peter": ("A", "皮特鲁", "Steady Aim, Correct for Drift (+range on bow arts)", "Bow, Infantry", "Heavy Armor"),
+    "Ultand": ("B", "乌尔坦德", "Patch Up, Pray for Safety", "White Magic, Flying, Spear", "Sword"),
+    "Guzran": ("S", "古扎岚", "Hot-Headed (+10 Hit/Avoid/Crit at random), Top Form", "Gauntlet, Infantry, Sword", "White Magic, Black Magic"),
+    "Nezha": ("A+", "哪咤", "Quick Draw (+3 Atk when moving first), Never Stop", "Gauntlet, Infantry, Sword", "Spear"),
+    "Nuzzuo": ("A", "努佐", "Har Hali Wisdom, Precision Strike", "Bow, Gauntlet, Sword", "—"),
+    "Dadao": ("C", "大刀", "One Chance, Full Strength", "Axe, Heavy Armor", "White Magic, Black Magic, Spear"),
+    "Majide": ("C", "马吉迪", "Fear Nothing, Hellbent Axe", "Axe, Gauntlet", "White Magic, Flying, Black Magic"),
+    "Ninae": ("B", "妮涅", "Spirits' Voices, Spirits' Guidance, Diadem of Reflection", "White Magic, Riding, Spear", "Bow"),
+    "Seteth": ("C", "西提司", "Ready for Battle, Pass Judgment, Diadem of Balance", "Authority, Axe, Flying, Spear", "—"),
+    "Nydine": ("D", "努蒂奴", "Barge Through, At a Gallop", "Axe, Flying, Black Magic, Riding", "Gauntlet, Heavy Armor"),
+    "Peppe": ("D", "佩佩", "Hunter's Snare, King's Majesty", "Bow, Infantry, Sword", "White Magic"),
+    "Fabio": ("A+", "法毕欧", "Dark Calling (adjacent foes −5 Ddg), Dark Secrets", "Authority, Black Magic", "Bow"),
+    "Esmeralda": ("A+", "艾丝美拉尔达", "Brawn (lighter weapons), Throwing Arm, Diadem of Valor", "Axe, Heavy Armor, Spear", "Black Magic, Sword"),
+    "Mikaela": ("A", "米迦艾拉", "Veteran's Mettle, Redblade's Will", "Axe, Bow, Infantry", "White Magic, Flying, Black Magic, Riding"),
+    "Yang Jie": ("B", "杨界", "Monkly Havoc, Robust Health", "Axe, White Magic", "Riding, Sword"),
+    "Gaitz": ("B", "盖茨", "Brave Assist, Flashing Fang", "Axe, Riding, Spear", "White Magic, Black Magic"),
+    "Io": ("D", "伊欧", "With My Steed, Mounted Push", "Axe, Riding, Spear", "White Magic, Flying"),
+    "Kiroc": ("A", "奇洛伊卡", "Tyranny, Menace", "Bow", "—"),
+    "Goliath": ("A", "哥莱亚斯", "Heavyweight Class, Pin Down", "Axe, Heavy Armor", "White Magic, Flying, Black Magic"),
+    "Jester": ("B", "杰斯塔", "Blink of an Eye, Flickering Edge", "Bow, Infantry, Sword", "Axe"),
+    "Ursula": ("B", "乌修拉", "Management Skills, Diadem of Fetters, Seize the Chance", "Bow, Gauntlet, Sword", "—"),
+    "Benditz": ("A", "班迪兹", "Wheeled Warrior, Chariot Stagger", "Authority, Bow, Riding", "Infantry"),
+    "Noctula": ("A", "诺克裘拉", "Warrior's Clarity, Attuned", "Axe, Gauntlet, Infantry", "White Magic, Black Magic, Sword"),
+    "Mu": ("A+", "穆", "Signs of Growth (boosted growths), Warrior's Blood", "Axe, Gauntlet, White Magic, Sword", "—"),
+    "Bonaventure": ("A", "波拿帕尔特", "Sage Advice, Additional Intel", "Authority, White Magic, Black Magic, Riding, Sword", "Flying, Heavy Armor"),
+    "Tobias": ("A", "托比亚斯", "Power Arts, All-Out Attack", "Axe, Heavy Armor, Riding", "Sword"),
+    "Lysander": ("B", "莱桑达", "Racing Attack, Accelerate", "Axe, Flying, Riding, Spear", "Gauntlet, Heavy Armor, Sword"),
+    "Lilian": ("A", "莉利安", "Safety First, Upper Hand", "Bow, Infantry", "Gauntlet"),
+    "Sofia": ("S", "索绯雅", "Healing Knowledge (+10 healing), Distant Healing (+heal range)", "Bow, White Magic", "Axe"),
+    "Alexandra": ("A", "亚历珊德拉", "Silver Maiden, Soar", "Flying, Spear, Sword", "Axe, Black Magic"),
+    "Halvin": ("B", "哈尔温", "Adaptability, Halt Advance", "Bow, Riding", "Axe"),
+    "Diego": ("B", "迪雅各", "No Mercy, Caretaker", "Bow, Infantry, Sword", "Black Magic"),
+    "Dante": ("B", "丹提", "Stage Directions, Dramatic Effect", "Authority, White Magic, Black Magic", "Gauntlet"),
+    "Loretta": ("A", "罗蕾塔", "Steadfast, Peak Form", "Flying, Spear, Sword", "Heavy Armor"),
+    "Zarcone": ("B", "札可捏", "Hatchet Man, Vulgar Conduct", "Axe, Sword", "White Magic, Black Magic"),
+    "Buccar": ("A", "巴卡尼亚", "Guardian's Duty, Retaliatory Blow", "Axe, Heavy Armor, Riding, Spear", "White Magic, Black Magic"),
+    "Sirocco": ("S", "西洛可", "Goddess's Favor (heal 5 HP after battle), Wind's Caprice", "Authority, White Magic, Black Magic, Sword", "Heavy Armor"),
+    "Olympia": ("A+", "奥琳琵娅", "Ardent Nosferatu (Crit with Nosferatu), Competitive Zeal", "Axe, White Magic", "Spear"),
+    "Catania": ("A+", "卡塔妮雅", "Punishing Squall, Wind My Friend", "Flying, Spear, Sword", "Heavy Armor"),
+    "Jasmine": ("C", "嘉丝敏", "Expert Counter, Raging Counter", "Axe, Heavy Armor, Spear", "Flying, Sword"),
+    "Inyoni": ("A+", "易尼奥尼", "Heavy-Bow User, Pierce", "Axe, Bow", "White Magic, Black Magic"),
+    "Fianna": ("C", "绯亚娜", "Graceful Light, Diadem of Revival, Gift of Faith", "White Magic, Black Magic, Riding", "Gauntlet, Sword"),
+    "Simon": ("A", "希蒙", "Close Call, Devil's Luck", "Axe, Infantry, Sword", "White Magic"),
+    "Ludia": ("A", "露露蒂雅", "Falcon, Perception", "Infantry, Spear, Sword", "Axe, Black Magic"),
+    "Sha Lan": ("B", "沙兰", "Cooler Heads, Watchfulness", "Authority, White Magic, Spear", "Sword"),
+    # Part II / III joiners
+    "Creek": ("A", "齐利科", "Steady Hands", "Riding, Sword", "—"),
+    "Nathan": ("C", "内森", "Headlong Rush", "Heavy Armor, Riding, Spear", "—"),
+    "Hong Hua": ("B", "红花", "Zhu Ming, Amplify Magic", "White Magic, Black Magic", "Axe, Heavy Armor"),
+    "Troy": ("B", "特洛伊亚", "Yun Shou, Modified Weapon", "Gauntlet, White Magic, Black Magic", "—"),
+    "Bertrand": ("A+", "贝特兰", "Diadem of the Victor, Requiem Style, Go No Sen, Sen No Sen", "Authority, Axe, Gauntlet, Sword", "White Magic, Black Magic"),
+    "Talimun": ("A+", "谭利穆恩", "Swashbuckler's Luck, Cannoning Flair, Winds of Victory", "Authority, Black Magic, Sword", "Heavy Armor"),
+    "Anatolia": ("A+", "爱娜特莉亚", "Celestial Flow, Continuum", "Gauntlet, Infantry, Black Magic", "Heavy Armor"),
+    "Orchel": ("S", "欧露赫露", "Solid and Sturdy, Predictive Sense, Harmonic Soul, Self-Repair", "Axe, White Magic, Black Magic", "Flying, Riding, Sword"),
+    "Centurio": ("B", "盛托利翁", "Sturdy Corundum", "Axe, Heavy Armor, Spear", "—"),
+    "Aswan": ("C", "亚丝望", "Princess of Arrows", "Authority, Bow, Infantry", "—"),
+    "Tahonia": ("D", "塔霍尼雅", "Python Technique", "Gauntlet", "—"),
+    "Klapka": ("D", "库拉普卡", "Spirit of Silver", "White Magic, Infantry, Spear", "—"),
+}
+
+PART3_ONLY = ["Eshmel", "Hong Hua", "Troy", "Bertrand", "Talimun", "Anatolia", "Orchel",
+              "Centurio", "Aswan", "Tahonia", "Klapka"]
+PART2_JOINERS = ["Creek", "Nathan"]
