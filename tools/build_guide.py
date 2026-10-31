@@ -37,6 +37,7 @@ def page(title, body, nav_extra=""):
 <main>
 <nav class="site">{nav}</nav>
 {body}
+<p class="meta" style="margin-top:3rem">Fan-made planner, not affiliated with Nintendo or Intelligent Systems. Character portraits © Nintendo / Intelligent Systems, via Game8.</p>
 </main>
 </body>
 </html>
@@ -185,6 +186,37 @@ def skill_rows(b, path_n):
     return rows
 
 
+PORTRAITS = ROOT / "assets" / "portraits"
+LORD_COLOR = {"cai": "var(--cai)", "dietrich": "var(--dietrich)", "theodora": "var(--theodora)",
+              "leda": "var(--leda)", None: "var(--accent)"}
+
+
+def slug(name):
+    return name.lower().replace(" ", "-")
+
+
+def home_lord(name):
+    for p in PATHS:
+        if any(b["unit"] == name for b in BUILDS[p["n"]]):
+            return p["lord"]
+    return None
+
+
+def avatar(name):
+    """Portrait from assets/portraits/<slug>.(webp|png|jpg) if present, else a monogram badge."""
+    for ext in ("webp", "png", "jpg"):
+        if (PORTRAITS / f"{slug(name)}.{ext}").exists():
+            return (f'<img class="avatar" src="../assets/portraits/{slug(name)}.{ext}" '
+                    f'alt="{escape(name)}" loading="lazy" width="70" height="56">')
+    words = name.split()
+    initials = "".join(w[0] for w in words[:2]) if len(words) > 1 else name[:2]
+    color = LORD_COLOR[home_lord(name)]
+    return (f'<svg class="avatar" viewBox="0 0 56 56" role="img" aria-label="{escape(name)}">'
+            f'<circle cx="28" cy="28" r="26" fill="var(--chip)" stroke="{color}" stroke-width="3"/>'
+            f'<text x="28" y="34" text-anchor="middle" font-size="18" font-weight="700" fill="{color}">'
+            f'{escape(initials)}</text></svg>')
+
+
 def build_card(b, path_n=None):
     name = b["unit"]
     tier, cn, abil, boons, banes = UNITS[name]
@@ -201,8 +233,9 @@ def build_card(b, path_n=None):
         rows[5:5] = skill_rows(b, path_n)
     dl = "".join(f"<dt>{k}</dt><dd>{v}</dd>" for k, v in rows if v and v != "—")
     return (f'<div class="card" id="{escape(name.lower().replace(" ", "-"))}">'
+            f'<div class="card-head">{avatar(name)}<div>'
             f"<h3>{escape(name)}{tag}</h3>"
-            f'<div class="sub">{cn} · Game8 tier {tier}</div>'
+            f'<div class="sub">{cn} · Game8 tier {tier}</div></div></div>'
             f'<ol class="steps">{steps}</ol><dl>{dl}</dl></div>')
 
 

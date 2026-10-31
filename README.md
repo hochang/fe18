@@ -6,6 +6,7 @@ A static site with a route order, per-path rosters, build cards for every unit, 
 - `guide/` — the plan (generated)
 - `research/` — source notes from English, Japanese-site and Chinese guides
 - `tools/` — data and the generator for `guide/`
+- `assets/portraits/` — character portraits (© Nintendo / Intelligent Systems, via Game8); a card falls back to a monogram badge if its image is missing
 
 ## Editing the plan
 
