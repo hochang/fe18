@@ -9,6 +9,12 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent))
 from units import CLASS_CN, CLASSES, LORDS, TIER_ORDER, UNITS  # noqa: E402
 from plan import BUILDS, ESHMEL, ESHMEL_NOTES, PART2, PART3, PATHS  # noqa: E402
+from skills import (CLASS_GROWTH, CLASS_ROLE, FEMALE, FEMALE_ONLY, MASTERY, ROLE, STATS,  # noqa: E402
+                    UNIT_GROWTH, UNLOCK_PATH)
+import re  # noqa: E402
+
+FAIRE = {"Sword": "Swordfaire", "Spear": "Spearfaire", "Axe": "Axefaire", "Bow": "Bowfaire",
+         "Gauntlet": "Fistfaire", "Black Magic": "Black-Magic Mastery", "White Magic": "White-Magic Mastery"}
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "guide"
@@ -18,7 +24,7 @@ CSS = "../research/style.css"
 def page(title, body, nav_extra=""):
     nav = '<a href="../index.html">Home</a> <a href="index.html">Plan overview</a>' + "".join(
         f' <a href="{p["slug"]}.html">{p["n"]}. {LORDS[p["lord"]]["name"]}</a>' for p in PATHS
-    ) + ' <a href="part-2-3.html">Part II &amp; III</a> <a href="../research/index.html">Research</a>' + nav_extra
+    ) + ' <a href="part-2-3.html">Part II &amp; III</a> <a href="skills.html">Skills</a> <a href="../research/index.html">Research</a>' + nav_extra
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -53,6 +59,132 @@ def step_li(cls, when):
             f"<span class=\"req\">ranks: {escape(req)}{extra}</span></li>")
 
 
+def growth(unit, cls, stat):
+    if cls not in CLASS_GROWTH:
+        return None
+    i = STATS.index(stat)
+    return UNIT_GROWTH[unit][i] + CLASS_GROWTH[cls][i]
+
+
+def class_available(cls, unit, path_n):
+    """Whether a unit can sit in this class on this path (path_n 'III' = Part III)."""
+    tier = CLASSES[cls][0]
+    if cls in FEMALE_ONLY and unit not in FEMALE:
+        return False
+    if path_n == "III":
+        return True
+    if tier in ("Master", "Divine") or cls == "Elephant Rider":
+        return False
+    return UNLOCK_PATH.get(cls, 0) <= (path_n if isinstance(path_n, int) else 4)
+
+
+SKILL_NAME = {"White": "White Magic", "Black": "Black Magic"}
+
+
+def blocked_by_bane(cls, unit):
+    """True if a required skill of the class is one of the unit's banes (every alternative)."""
+    banes = {x.strip() for x in UNITS[unit][4].split(",")}
+    for part in re.split(r"[;,]", CLASSES[cls][1]):
+        alts = [re.sub(r"\s+[A-ES]\+?$", "", a.strip()) for a in part.split("/")]
+        alts = [SKILL_NAME.get(a, a) for a in alts if a]
+        if alts and all(a in banes for a in alts):
+            return True
+    return False
+
+
+def final_copy(unit, path_n):
+    for n in range(path_n + 1, 5):
+        for b in BUILDS[n]:
+            if b["unit"] == unit and b.get("copy") == "final":
+                return n, b
+    return None, None
+
+
+def personal_abilities(abil):
+    return [a.strip() for a in re.sub(r"\([^)]*\)", "", abil).split(",") if a.strip()]
+
+
+def masteries(b, path_n):
+    """Classes this build masters on its path, and extra classes to farm for their skills."""
+    unit, copy = b["unit"], b.get("copy")
+    classes = [c for c, _ in b["steps"]]
+    pack = ROLE[CLASS_ROLE.get(classes[-1], "sword")][1]
+    kept = [c for c in classes if c in MASTERY and CLASSES[c][0] not in ("Beginner", "Basic")]
+    limit = 1 if copy == "early" else 3 if (copy == "final" or path_n == "III") else 2
+    farm = [c for c in pack if c not in classes and class_available(c, unit, path_n)
+            and CLASSES[c][0] not in ("Beginner", "Basic") and not blocked_by_bane(c, unit)][:limit]
+    return [kept, farm]
+
+
+def skill_rows(b, path_n):
+    """Level-in growths, masteries to keep and farm, and an equip order for one build."""
+    unit = b["unit"]
+    classes = [c for c, _ in b["steps"]]
+    role = CLASS_ROLE.get(classes[-1], "sword")
+    keys, pack, weapon, extra = ROLE[role]
+    copy = b.get("copy")
+    rows = []
+
+    lv = []
+    for c in classes:
+        g = [growth(unit, c, k) for k in keys]
+        if None in g:
+            continue
+        lv.append(f"{escape(c)}: " + " · ".join(f"{k} {v}%" for k, v in zip(keys, g)))
+    if lv:
+        rows.append(("Level in", "<br>".join(lv)))
+
+    kept, farm = masteries(b, path_n)
+    inherited = []
+    for m in b.get("carry") or []:
+        eb = next(x for x in BUILDS[m] if x["unit"] == unit)
+        inherited += [c for c in sum(masteries(eb, m), []) if c not in kept and c not in inherited]
+    farm = [c for c in farm if c not in inherited]
+    if inherited:
+        rows.append(("Carried in", "; ".join(f"{escape(c)} → <b>{MASTERY[c][0]}</b>" for c in inherited)
+                     + " <span class=\"meta\">— mastered on Part I paths</span>"))
+    early = set()
+    if copy == "final" and isinstance(path_n, int):
+        for n in range(1, path_n):
+            for eb in BUILDS[n]:
+                if eb["unit"] == unit:
+                    early |= set(sum(masteries(eb, n), []))
+    if kept:
+        rows.append(("Master here", "; ".join(f"{escape(c)} → <b>{MASTERY[c][0]}</b> ({MASTERY[c][1]})" for c in kept)))
+    if farm:
+        rows.append(("Farm only", "; ".join(f"{escape(c)} → <b>{MASTERY[c][0]}</b> ({MASTERY[c][1]})"
+                                             + (" — also arrives via the Part III merge" if c in early else "") for c in farm)
+                     + " <span class=\"meta\">— low-level dungeon, weak weapon, basic attacks, so it costs almost no levels</span>"))
+
+    owned = kept + farm + inherited
+    ranked = [c for c in pack if c in owned] + [c for c in owned if c not in pack]
+    top = []
+    for c in reversed(classes):
+        if CLASSES.get(c, ("",))[0] in ("Master", "Divine") and c in MASTERY:
+            top.append(MASTERY[c][0])
+    top += [MASTERY[c][0] for c in ranked if MASTERY[c][0] not in top]
+    faire = " or ".join(FAIRE[w.strip()] for w in weapon.split(" or ") if w.strip() in FAIRE)
+    if copy == "final" or path_n == "III":
+        rank_ability = f"{faire} at S+ (Hit/Avo +10, Atk +3)"
+    else:
+        rank_ability = f"{weapon} Lv. 3 at B+ (Hit/Avo +5)"
+    equip = personal_abilities(UNITS[unit][2]) + top[:3] + [rank_ability]
+    if extra:
+        equip.append(extra)
+    rows.append(("Equip order", " → ".join(escape(e) for e in equip)))
+
+    if copy == "early":
+        n, fb = final_copy(unit, path_n)
+        if fb:
+            mine, theirs = classes[-1], fb["steps"][-1][0]
+            better = [k for k in STATS if k != "Cha" and
+                      CLASS_GROWTH[mine][STATS.index(k)] - CLASS_GROWTH[theirs][STATS.index(k)] >= 10]
+            if better:
+                rows.append(("Merge gain", f"{escape(mine)} grows {', '.join(better)} faster than the final copy's "
+                             f"{escape(theirs)}; merge keeps the higher value, and these masteries carry over."))
+    return rows
+
+
 def build_card(b, path_n=None):
     name = b["unit"]
     tier, cn, abil, boons, banes = UNITS[name]
@@ -65,6 +197,8 @@ def build_card(b, path_n=None):
     rows = [("Joins", b.get("join", "")), ("Role", b.get("role", "")), ("Train", b.get("train", "")),
             ("Gear", b.get("gear", "")), ("Mount etc.", b.get("extra", "")), ("Abilities", abil),
             ("Boons", boons), ("Banes", banes), ("Why", b.get("notes", ""))]
+    if path_n is not None:
+        rows[5:5] = skill_rows(b, path_n)
     dl = "".join(f"<dt>{k}</dt><dd>{v}</dd>" for k, v in rows if v and v != "—")
     return (f'<div class="card" id="{escape(name.lower().replace(" ", "-"))}">'
             f"<h3>{escape(name)}{tag}</h3>"
@@ -139,15 +273,16 @@ def part3_card(u, squad):
     if merge:
         names = [LORDS[PATHS[m - 1]["lord"]]["name"] for m in merge]
         merge_txt = f"Merge Causality: {names[0]} copy is the source, + {', '.join(names[1:])} (300 Karma Shards)."
-    b = {"unit": unit, "join": f"Squad {squad}", "steps": steps, "gear": u.get("gear", ""),
+    carry = merge or [n for n in (1, 2, 3, 4) if any(x["unit"] == unit for x in BUILDS[n])]
+    b = {"unit": unit, "join": f"Squad {squad}", "steps": steps, "gear": u.get("gear", ""), "carry": carry,
          "extra": merge_txt, "notes": u.get("note", ""), "copy": "final" if merge else None,
          "train": " · ".join(f"{c}: {CLASSES[c][1]}" for c, _ in steps[-2:] if CLASSES[c][0] in ("Master", "Divine"))}
-    return build_card(b)
+    return build_card(b, "III")
 
 
 def render_part23():
     p2_notes = "".join(f"<li>{n}</li>" for n in PART2["notes"])
-    p2_cards = "".join(build_card({**b, "join": "Part II"}) for b in PART2["builds"])
+    p2_cards = "".join(build_card({**b, "join": "Part II"}, 4) for b in PART2["builds"])
     in_p3 = {u["unit"] for sq in PART3 for u in sq["units"]}
     bench = [b["unit"] for n in (1, 2, 3, 4) for b in BUILDS[n] if b["unit"] not in in_p3]
     bench = sorted(set(bench), key=bench.index)
@@ -173,6 +308,66 @@ def render_part23():
 {squads}
 """
     return page("Part II and III", body)
+
+
+def render_skills():
+    head = "".join(f"<th>{k}</th>" for k in STATS)
+    crows = ""
+    for tier in TIER_ORDER:
+        for cls, (t, req, unlock) in CLASSES.items():
+            if t != tier:
+                continue
+            g = CLASS_GROWTH.get(cls)
+            cells = "".join(f"<td>{v:+d}</td>" for v in g) if g else f"<td colspan=\"{len(STATS)}\">not listed</td>"
+            m = MASTERY.get(cls, ("", ""))
+            crows += (f"<tr><td>{escape(cls)}</td><td>{CLASS_CN.get(cls, '')}</td><td>{t}</td>"
+                      f"<td><b>{escape(m[0])}</b><br><span class=\"meta\">{escape(m[1])}</span></td>{cells}</tr>")
+    urows = "".join(f"<tr><td>{escape(u)}</td><td>{UNITS[u][1]}</td>" + "".join(f"<td>{v}</td>" for v in g) + "</tr>"
+                    for u, g in UNIT_GROWTH.items())
+    body = f"""
+<h1>Masteries and growth rates</h1>
+<p class="meta">Masteries: Game8 class and ability pages. Growths: Keengamer (2026-09-28). Final growth = character growth + class modifier, rolled per stat each level.</p>
+<h2>How masteries and levelling fit together</h2>
+<ul>
+<li>Fully mastering a class gives its mastery ability for good: you can equip it in any later class (Game8, allthings.how). Merge Causality in Part III carries every copy's masteries to the merged unit.</li>
+<li>Every level uses the growth modifiers of the class you're in, so spend real levels in the class whose growths fit the unit's role. That's the <b>Level in</b> line on each build card.</li>
+<li>Masteries from other classes (<b>Farm only</b> on the cards) are earned in a dungeon far below your level: switch into the class, equip a weak weapon of its type and use basic attacks, not one-hit kills. Class experience rises while you gain few levels (CN: NTGame, NGA).</li>
+<li>Early copies on Normal paths are the cheapest place to bank extra masteries; they flow into the final copy at the Part III merge.</li>
+<li>Equip in this order (Game8): personal Lv20/Lv35 abilities, the class's own mastery, off-class masteries, then weapon-rank abilities like Swordfaire. Mounted units can't use infantry-only abilities and vice versa. The ability slot count isn't confirmed by any source.</li>
+</ul>
+<h2>Weapon-rank abilities</h2>
+<div class="table-wrap"><table>
+<tr><th>Rank</th><th>Ability</th><th>Effect with that weapon</th></tr>
+<tr><td>D+</td><td>&lt;Weapon&gt; Lv. 1</td><td>Hit +3</td></tr>
+<tr><td>C+</td><td>Lv. 2</td><td>Hit +5</td></tr>
+<tr><td>B+</td><td>Lv. 3</td><td>Hit/Avo +5</td></tr>
+<tr><td>A+</td><td>Lv. 4</td><td>Hit/Avo +7</td></tr>
+<tr><td>S</td><td>Lv. 5</td><td>Hit/Avo +10</td></tr>
+<tr><td>S+</td><td>Swordfaire / Spearfaire / Axefaire / Bowfaire / Fistfaire / Black- or White-Magic Mastery</td><td>Hit/Avo +10, Atk +3</td></tr>
+</table></div>
+<p class="meta">Rank-to-level pairing is inferred from Game8's page layout. Other skill abilities worth noting: Read the Winds (Flying D, Avo +10 vs bows), Heavy Break (Armored, Theodora and Esmeralda), Evasion, Infantry Move.</p>
+<h2>Classes: mastery ability and growth modifiers</h2>
+<div class="table-wrap"><table>
+<tr><th>Class</th><th>CN</th><th>Tier</th><th>Mastery</th>{head}</tr>
+{crows}
+</table></div>
+<h2>Character growth rates</h2>
+<div class="table-wrap"><table>
+<tr><th>Unit</th><th>CN</th>{head}</tr>
+{urows}
+</table></div>
+<p class="meta">Mu's row includes Signs of Growth (+20 to each growth).</p>
+<h2>Sources</h2>
+<ul class="sources">
+<li><a href="https://game8.co/games/Fire-Emblem-Fortunes-Weave/archives/620256">Game8 — class list</a></li>
+<li><a href="https://game8.co/games/Fire-Emblem-Fortunes-Weave/archives/623691">Game8 — all abilities</a></li>
+<li><a href="https://game8.co/games/Fire-Emblem-Fortunes-Weave/archives/631539">Game8 — best abilities to equip</a></li>
+<li><a href="https://www.keengamer.com/articles/guides/fire-emblem-fortunes-weave-growth-rates-for-all-characters-and-classes/">Keengamer — growth rates</a></li>
+<li><a href="https://allthings.how/fire-emblem-fortune-s-weave-class-guide-all-tiers-and-masteries/">allthings.how — class guide and masteries</a></li>
+<li><a href="https://ntgame.com/fire-emblem-wanlvqiansi/growth/">NTGame — growth and mastery (CN)</a></li>
+</ul>
+"""
+    return page("Masteries and Growths", body)
 
 
 def coverage():
@@ -273,6 +468,7 @@ def render_index():
 <li><b>Licences:</b> one exam licence per attempt, used up even on a fail, so only sit an exam at 100% pass chance. Part I gives few Advanced certificates (Megaira refreshes one per chapter), so promote your main units to Advanced in Part I and get the rest to Specialty with their Advanced skill ranks pre-farmed. Part II sets everyone to Lv35 and hands out five Advanced tickets before each battle (GamerSky), so the bench promotes there.</li>
 <li><b>Master classes</b> only open in Part III (gods' requests). Levelling past 45 in a good Advanced class while you wait isn't a loss (Game8: use Shido until Swordmaster unlocks).</li>
 <li>The Lv20 / Lv35 marks on the build cards are the earliest sensible promotion points, not targets to wait for.</li>
+<li>Each build card now shows where to <b>level</b> (growths per class), which masteries to <b>keep</b>, which to <b>farm only</b>, and an <b>equip order</b>. Full mastery and growth tables: <a href="skills.html">Masteries and growth rates</a>.</li>
 </ul>
 
 <h2>Special classes</h2>
@@ -327,6 +523,7 @@ def main():
     for p in PATHS:
         (OUT / f"{p['slug']}.html").write_text(render_path(p))
     (OUT / "part-2-3.html").write_text(render_part23())
+    (OUT / "skills.html").write_text(render_skills())
     print("missing units:", missing_units)
     print("missing classes:", missing_classes)
     print("squad sizes:", sizes)
