@@ -22,10 +22,31 @@ OUT = ROOT / "guide"
 CSS = "../research/style.css"
 
 
+def site_nav(prefix):
+    """The shared nav bar. prefix is the path from the page to the site root ('', '../' or '/fe18/')."""
+    items = [("index.html", "Home"), ("guide/index.html", "Plan overview")]
+    items += [(f"guide/{p['slug']}.html", f"{p['n']}. {LORDS[p['lord']]['name']}") for p in PATHS]
+    items += [("guide/part-2-3.html", "Part II &amp; III"), ("guide/skills.html", "Skills"),
+              ("guide/supports.html", "Supports"), ("research/index.html", "Research")]
+    return '<nav class="site">' + " ".join(f'<a href="{prefix}{h}">{t}</a>' for h, t in items) + "</nav>"
+
+
+def sync_static_navs():
+    """Put the shared nav on the hand-written pages (home, research, 404)."""
+    targets = [(ROOT / "index.html", ""), (ROOT / "404.html", "/fe18/")]
+    targets += [(f, "../") for f in sorted((ROOT / "research").glob("*.html"))]
+    for f, prefix in targets:
+        s = f.read_text(encoding="utf-8")
+        nav = site_nav(prefix)
+        if '<nav class="site">' in s:
+            s = re.sub(r'<nav class="site">.*?</nav>', lambda m: nav, s, count=1, flags=re.S)
+        else:
+            s = s.replace("<main>\n", "<main>\n" + nav + "\n", 1)
+        f.write_text(s, encoding="utf-8")
+
+
 def page(title, body, nav_extra=""):
-    nav = '<a href="../index.html">Home</a> <a href="index.html">Plan overview</a>' + "".join(
-        f' <a href="{p["slug"]}.html">{p["n"]}. {LORDS[p["lord"]]["name"]}</a>' for p in PATHS
-    ) + ' <a href="part-2-3.html">Part II &amp; III</a> <a href="skills.html">Skills</a> <a href="supports.html">Supports</a> <a href="../research/index.html">Research</a>' + nav_extra
+    nav = site_nav("../")[len('<nav class="site">'):-len("</nav>")] + nav_extra
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -333,7 +354,7 @@ def render_part23():
 <ul>
 <li>You start with 2 squads and unlock up to 5. Squads A and B are the core; C–E fill in as they open.</li>
 <li>Part I recruits rejoin in Section 2 by talking to them. <b>Merge Causality</b> unlocks after Section 1: Obelisk Chamber → Shrine of Causality, 300 Karma Shards per unit. Pick the later path's copy as the "main stats and class" source; highest stats and all skill ranks/Combat Arts are combined.</li>
-<li>Merges here: Guzran, Mu (four copies, three merges), Nezha, Nuzzuo, Esmeralda (about 2,100 shards). If shards are tight, Game8 suggests spending them on Boons of Salvation instead; merge Mu and Guzran first.</li>
+<li>Merges here: Mu (four copies, three merges), Guzran, Esmeralda (about 1,500 shards). If shards are tight, Game8 suggests spending them on Boons of Salvation instead; merge Mu and Guzran first.</li>
 <li>After merging, don't restart the stage, or the shards are lost (CN).</li>
 <li>Master classes need Lv45 and the matching temple restoration where noted. Divine classes open in Section 4; each needs its licence item from the Temple of the Diadem (keys: Heretics' Cave, far east Cougar Woodlands, Giant's-Print Foot, Enno Isle, Sand-Shadow Fort). Only one unit per Divine class.</li>
 <li>Bench (already used in Part I; rotate in as needed): {', '.join(bench)}.</li>
@@ -680,6 +701,7 @@ def main():
     (OUT / "part-2-3.html").write_text(render_part23())
     (OUT / "skills.html").write_text(render_skills())
     (OUT / "supports.html").write_text(render_supports())
+    sync_static_navs()
     print("missing units:", missing_units)
     print("missing classes:", missing_classes)
     print("squad sizes:", sizes)
