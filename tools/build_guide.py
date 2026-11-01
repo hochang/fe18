@@ -12,6 +12,7 @@ from plan import BUILDS, ESHMEL, ESHMEL_NOTES, PART2, PART3, PATHS  # noqa: E402
 from skills import (CLASS_GROWTH, CLASS_ROLE, FEMALE, FEMALE_ONLY, MASTERY, ROLE, STATS,  # noqa: E402
                     UNIT_GROWTH, UNLOCK_PATH)
 import re  # noqa: E402
+from supports import ENDINGS, GIFTS, PREFER  # noqa: E402
 
 FAIRE = {"Sword": "Swordfaire", "Spear": "Spearfaire", "Axe": "Axefaire", "Bow": "Bowfaire",
          "Gauntlet": "Fistfaire", "Black Magic": "Black-Magic Mastery", "White Magic": "White-Magic Mastery"}
@@ -24,7 +25,7 @@ CSS = "../research/style.css"
 def page(title, body, nav_extra=""):
     nav = '<a href="../index.html">Home</a> <a href="index.html">Plan overview</a>' + "".join(
         f' <a href="{p["slug"]}.html">{p["n"]}. {LORDS[p["lord"]]["name"]}</a>' for p in PATHS
-    ) + ' <a href="part-2-3.html">Part II &amp; III</a> <a href="skills.html">Skills</a> <a href="../research/index.html">Research</a>' + nav_extra
+    ) + ' <a href="part-2-3.html">Part II &amp; III</a> <a href="skills.html">Skills</a> <a href="supports.html">Supports</a> <a href="../research/index.html">Research</a>' + nav_extra
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -332,7 +333,7 @@ def render_part23():
 <ul>
 <li>You start with 2 squads and unlock up to 5. Squads A and B are the core; C–E fill in as they open.</li>
 <li>Part I recruits rejoin in Section 2 by talking to them. <b>Merge Causality</b> unlocks after Section 1: Obelisk Chamber → Shrine of Causality, 300 Karma Shards per unit. Pick the later path's copy as the "main stats and class" source; highest stats and all skill ranks/Combat Arts are combined.</li>
-<li>Merges here: Guzran, Mu, Nezha, Nuzzuo, Esmeralda (1,500 shards). If shards are tight, Game8 suggests spending them on Boons of Salvation instead; merge Mu and Guzran first.</li>
+<li>Merges here: Guzran, Mu (four copies, three merges), Nezha, Nuzzuo, Esmeralda (about 2,100 shards). If shards are tight, Game8 suggests spending them on Boons of Salvation instead; merge Mu and Guzran first.</li>
 <li>After merging, don't restart the stage, or the shards are lost (CN).</li>
 <li>Master classes need Lv45 and the matching temple restoration where noted. Divine classes open in Section 4; each needs its licence item from the Temple of the Diadem (keys: Heretics' Cave, far east Cougar Woodlands, Giant's-Print Foot, Enno Isle, Sand-Shadow Fort). Only one unit per Divine class.</li>
 <li>Bench (already used in Part I; rotate in as needed): {', '.join(bench)}.</li>
@@ -401,6 +402,124 @@ def render_skills():
 </ul>
 """
     return page("Masteries and Growths", body)
+
+
+def best_pairing():
+    """Maximum set of paired endings with no unit used twice.
+
+    Ranked by number of pairs, then by how much the partners fight together:
+    same Part III squad +3, a shared Part I path +2, both in Part III +1, romantic +0.5.
+    """
+    squad = {u["unit"]: sq["squad"] for sq in PART3 for u in sq["units"]}
+    paths = {}
+    for n, bs in BUILDS.items():
+        for b in bs:
+            paths.setdefault(b["unit"], set()).add(n)
+
+    def score(a, b, rom):
+        sc = 3 if squad.get(a) and squad.get(a) == squad.get(b) else 0
+        sc += 2 if paths.get(a, set()) & paths.get(b, set()) else 0
+        sc += 1 if a in squad and b in squad else 0
+        return sc + (0.5 if rom else 0) + PREFER.get((a, b), PREFER.get((b, a), 0))
+
+    edges = [(a, b, score(a, b, r), r) for a, b, r in ENDINGS if a in UNITS and b in UNITS]
+    adj = {}
+    for e in edges:
+        for n in e[:2]:
+            adj.setdefault(n, []).append(e)
+    best = [(-1, -1.0), []]
+
+    def other(e, n):
+        return e[1] if e[0] == n else e[0]
+
+    def solve(free, chosen, cnt, sc):
+        live = [n for n in free if any(other(e, n) in free for e in adj[n])]
+        if cnt + len(live) // 2 < best[0][0]:
+            return
+        if not live:
+            if (cnt, sc) > best[0]:
+                best[0], best[1] = (cnt, sc), list(chosen)
+            return
+        n = min(live, key=lambda x: sum(other(e, x) in free for e in adj[x]))
+        for e in sorted(adj[n], key=lambda e: -e[2]):
+            if other(e, n) in free:
+                chosen.append(e)
+                solve(free - {n, other(e, n)}, chosen, cnt + 1, sc + e[2])
+                chosen.pop()
+        solve(free - {n}, chosen, cnt, sc)
+
+    solve(frozenset(adj), [], 0, 0.0)
+    return best[1], squad, paths, set(adj)
+
+
+def render_supports():
+    pairing, squad, paths, has_ending = best_pairing()
+    pairing.sort(key=lambda e: -e[2])
+    matched = {n for e in pairing for n in e[:2]}
+
+    def together(a, b):
+        bits = []
+        if squad.get(a) and squad.get(a) == squad.get(b):
+            bits.append(f"Part III Squad {escape(squad[a])}")
+        for n in sorted(paths.get(a, set()) & paths.get(b, set())):
+            bits.append(f"Path {n} ({LORDS[PATHS[n - 1]['lord']]['name']})")
+        return ", ".join(bits) or "Not deployed together — raise it with meals and gifts"
+
+    def who(n):
+        return f'<div class="card-head">{avatar(n)}<div><b>{escape(n)}</b><br><span class="meta">{UNITS[n][1]}</span></div></div>'
+
+    rows = ""
+    for a, b, sc, rom in pairing:
+        gifts = "<br>".join(f"<b>{escape(x)}</b>: {escape(GIFTS[x])}" for x in (a, b) if x in GIFTS)
+        kind = "Romantic" if rom else "Platonic or vague"
+        if "Eshmel" in (a, b):
+            kind = "Eshmel's pick (Support Level 5)"
+        rows += (f"<tr><td>{who(a)}</td><td>{who(b)}</td><td>{kind}</td>"
+                 f"<td>{together(a, b)}</td><td>{gifts}</td></tr>")
+    only_eshmel = sorted(n for n in has_ending - matched if n != "Eshmel")
+    no_ending = sorted(set(UNITS) - has_ending)
+    body = f"""
+<h1>Supports and paired endings</h1>
+<p class="meta">Pairs from Game8's paired-endings list (work in progress, read 2026-10-31). The pairing below is computed by the generator from the current roster, so it updates when the plan changes.</p>
+<h2>How it works</h2>
+<ul>
+<li><b>No marriage:</b> there are no S supports, no marriage system and no child units (Game8).</li>
+<li><b>Paired endings:</b> a character's ending pairs them with whoever they share the most support points with, but only if that pair has unlocked and watched its A support. Some endings are romantic (marriage, proposal, children), some vague, some platonic.</li>
+<li><b>Eshmel:</b> after the final battle you pick Eshmel's partner from anyone at Support Level 5. 48 units qualify; Part II/III joiners (except Hong Hua) and Seteth, Kiroc and Nuzzuo can't. No source mentions a gender requirement.</li>
+<li><b>Combat:</b> units with higher support buff each other when fighting side by side; the bonus grows with support level (Game8). No source gives the numbers. That's why the pairing below prefers partners who share a squad or path.</li>
+<li><b>Lords</b> need their own Part I path completed to get an ending.</li>
+</ul>
+<h2>Best pairing: {len(pairing)} pairs</h2>
+<p>{len(pairing)} is the most possible: no unit is in two pairs, and the {len(only_eshmel)} units listed further down have Eshmel as their only ending partner, while Eshmel can take one. Ties go to partners who fight together (same Part III squad, then same Part I path), then romantic endings.</p>
+<div class="table-wrap"><table>
+<tr><th>Unit</th><th>Partner</th><th>Ending</th><th>Fight together in</th><th>Favourite gifts</th></tr>
+{rows}
+</table></div>
+<p class="meta">Part III squads were adjusted for this: Olympia moved to Squad D with Leda, Loretta to Squad C with Seteth, Jester to Squad E with Halvin.</p>
+<h2>Raising support quickly</h2>
+<ul>
+<li>Meals at an inn (three units at a time) are half price on Sundays and holidays. Gifts and meals also work on units not yet recruited.</li>
+<li>Restarting a chapter keeps support points: on a long chapter, eat the three meals, auto-activity to the next Sunday, repeat, then restart (Game8, NGA).</li>
+<li>Fight side by side, heal or support with arts, and use Link attacks in dungeon clashes.</li>
+<li>Gifts many units love: Tales of Adventure, Strategy Manuscript, History of a Master, Portrait of Yu Phas, Volcano Ghosh. A gift on a unit's birthday always gets the best reaction.</li>
+<li>Bird Time raises Eshmel's support with everyone.</li>
+<li>Pairs on different paths: supports are shared across the save, so build them with meals and gifts on whichever path both are around.</li>
+<li>Don't max a unit's support with someone else past their partner's, or the ending goes to the other unit.</li>
+</ul>
+<h2>Left without a partner</h2>
+<p><b>Only partner is Eshmel</b> (taken by {escape(next((other for e in pairing if "Eshmel" in e[:2] for other in e[:2] if other != "Eshmel"), "—"))}): {", ".join(escape(n) for n in only_eshmel)}.</p>
+<p>Eshmel's slot is the flexible one: swapping Eshmel's partner for any unit in that list keeps the same number of pairs. Pick Theodora instead if you want all four lords to get an ending; the plan prefers a squad-mate for the side-by-side support buffs.</p>
+<p><b>No paired ending listed</b> (the Game8 page is unfinished, and Bertrand, Talimun, Orchel and Anatolia may get endings with the Expansion Pass): {", ".join(escape(n) for n in no_ending)}.</p>
+<h2>Sources</h2>
+<ul class="sources">
+<li><a href="https://game8.co/games/Fire-Emblem-Fortunes-Weave/archives/628208">Game8 — all paired endings</a></li>
+<li><a href="https://game8.co/games/Fire-Emblem-Fortunes-Weave/archives/621137">Game8 — is there romance?</a></li>
+<li><a href="https://game8.co/games/Fire-Emblem-Fortunes-Weave/archives/621007">Game8 — how to increase support level</a></li>
+<li><a href="https://game8.co/games/Fire-Emblem-Fortunes-Weave/archives/623690">Game8 — gift giving guide</a></li>
+<li><a href="https://game8.co/games/Fire-Emblem-Fortunes-Weave/archives/623869">Game8 — Eshmel</a></li>
+</ul>
+"""
+    return page("Supports and Endings", body)
 
 
 def coverage():
@@ -504,6 +623,9 @@ def render_index():
 <li>Each build card now shows where to <b>level</b> (growths per class), which masteries to <b>keep</b>, which to <b>farm only</b>, and an <b>equip order</b>. Full mastery and growth tables: <a href="skills.html">Masteries and growth rates</a>.</li>
 </ul>
 
+<h2>Supports and endings</h2>
+<p>No marriage or S supports, but paired endings exist. The generator picks the largest set of pairs from Game8's list (no unit used twice), preferring partners who fight side by side: see <a href="supports.html">Supports and paired endings</a>.</p>
+
 <h2>Special classes</h2>
 <div class="table-wrap"><table>
 <tr><th>Type</th><th>Class → who uses it</th></tr>
@@ -557,6 +679,7 @@ def main():
         (OUT / f"{p['slug']}.html").write_text(render_path(p))
     (OUT / "part-2-3.html").write_text(render_part23())
     (OUT / "skills.html").write_text(render_skills())
+    (OUT / "supports.html").write_text(render_supports())
     print("missing units:", missing_units)
     print("missing classes:", missing_classes)
     print("squad sizes:", sizes)
