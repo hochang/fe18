@@ -8,26 +8,28 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent))
 from units import CLASS_CN, CLASSES, LORDS, TIER_ORDER, UNITS  # noqa: E402
-from plan import BUILDS, ESHMEL, ESHMEL_NOTES, PART2, PART3, PATHS  # noqa: E402
+from plan import BUILDS, ESHMEL, ESHMEL_NOTES, PART2, PART3, PATHS, RECRUIT, WALKTHROUGH  # noqa: E402
 from skills import (CLASS_GROWTH, CLASS_ROLE, FEMALE, FEMALE_ONLY, MASTERY, ROLE, STATS,  # noqa: E402
                     UNIT_GROWTH, UNLOCK_PATH)
 import re  # noqa: E402
 from supports import ENDINGS, GIFTS, PREFER  # noqa: E402
+from gifts import GIFT_PREFS  # noqa: E402
 
 FAIRE = {"Sword": "Swordfaire", "Spear": "Spearfaire", "Axe": "Axefaire", "Bow": "Bowfaire",
          "Gauntlet": "Fistfaire", "Black Magic": "Black-Magic Mastery", "White Magic": "White-Magic Mastery"}
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "guide"
-CSS = "../research/style.css"
+CHARS = OUT / "characters"
+CSS_VER = __import__("hashlib").sha1((ROOT / "research" / "style.css").read_bytes()).hexdigest()[:8]
 
 
 def site_nav(prefix):
     """The shared nav bar. prefix is the path from the page to the site root ('', '../' or '/fe18/')."""
     items = [("index.html", "Home"), ("guide/index.html", "Plan overview")]
     items += [(f"guide/{p['slug']}.html", f"{p['n']}. {LORDS[p['lord']]['name']}") for p in PATHS]
-    items += [("guide/part-2-3.html", "Part II &amp; III"), ("guide/skills.html", "Skills"),
-              ("guide/supports.html", "Supports"), ("research/index.html", "Research")]
+    items += [("guide/part-2-3.html", "Part II &amp; III"), ("guide/characters/index.html", "Characters"),
+              ("guide/skills.html", "Skills"), ("guide/supports.html", "Supports"), ("research/index.html", "Research")]
     return '<nav class="site">' + " ".join(f'<a href="{prefix}{h}">{t}</a>' for h, t in items) + "</nav>"
 
 
@@ -38,6 +40,7 @@ def sync_static_navs():
     for f, prefix in targets:
         s = f.read_text(encoding="utf-8")
         nav = site_nav(prefix)
+        s = re.sub(r'href="([^"]*style\.css)(\?v=\w+)?"', lambda m: f'href="{m.group(1)}?v={CSS_VER}"', s)
         if '<nav class="site">' in s:
             s = re.sub(r'<nav class="site">.*?</nav>', lambda m: nav, s, count=1, flags=re.S)
         else:
@@ -45,15 +48,16 @@ def sync_static_navs():
         f.write_text(s, encoding="utf-8")
 
 
-def page(title, body, nav_extra=""):
-    nav = site_nav("../")[len('<nav class="site">'):-len("</nav>")] + nav_extra
+def page(title, body, nav_extra="", depth=1):
+    up = "../" * depth
+    nav = site_nav(up)[len('<nav class="site">'):-len("</nav>")] + nav_extra
     return f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{escape(title)}</title>
-<link rel="stylesheet" href="{CSS}">
+<link rel="stylesheet" href="{up}research/style.css?v={CSS_VER}">
 </head>
 <body>
 <main>
@@ -224,48 +228,129 @@ def home_lord(name):
     return None
 
 
-def avatar(name):
+def avatar(name, up="../", large=False):
     """Portrait from assets/portraits/<slug>.(webp|png|jpg) if present, else a monogram badge."""
+    cls = "avatar avatar-lg" if large else "avatar"
+    w, h = (140, 112) if large else (70, 56)
     for ext in ("webp", "png", "jpg"):
         if (PORTRAITS / f"{slug(name)}.{ext}").exists():
-            return (f'<img class="avatar" src="../assets/portraits/{slug(name)}.{ext}" '
-                    f'alt="{escape(name)}" loading="lazy" width="70" height="56">')
+            return (f'<img class="{cls}" src="{up}assets/portraits/{slug(name)}.{ext}" '
+                    f'alt="{escape(name)}" loading="lazy" width="{w}" height="{h}">')
     words = name.split()
     initials = "".join(w[0] for w in words[:2]) if len(words) > 1 else name[:2]
     color = LORD_COLOR[home_lord(name)]
-    return (f'<svg class="avatar" viewBox="0 0 56 56" role="img" aria-label="{escape(name)}">'
+    return (f'<svg class="{cls}" viewBox="0 0 56 56" role="img" aria-label="{escape(name)}">'
             f'<circle cx="28" cy="28" r="26" fill="var(--chip)" stroke="{color}" stroke-width="3"/>'
             f'<text x="28" y="34" text-anchor="middle" font-size="18" font-weight="700" fill="{color}">'
             f'{escape(initials)}</text></svg>')
 
 
-def build_card(b, path_n=None):
-    name = b["unit"]
-    tier, cn, abil, boons, banes = UNITS[name]
-    tag = ""
+def copy_tag(b):
     if b.get("copy") == "final":
-        tag = ' <span class="tag-final">final build · merge source</span>'
-    elif b.get("copy") == "early":
-        tag = ' <span class="tag-early">early copy</span>'
+        return ' <span class="tag-final">final build · merge source</span>'
+    if b.get("copy") == "early":
+        return ' <span class="tag-early">early copy</span>'
+    return ""
+
+
+def build_details(b, path_n=None):
+    """Class steps plus the detail rows of one build (no header)."""
     steps = "".join(step_li(c, w) for c, w in b["steps"])
     rows = [("Joins", b.get("join", "")), ("Role", b.get("role", "")), ("Train", b.get("train", "")),
-            ("Gear", b.get("gear", "")), ("Mount etc.", b.get("extra", "")), ("Abilities", abil),
-            ("Boons", boons), ("Banes", banes), ("Why", b.get("notes", ""))]
+            ("Gear", b.get("gear", "")), ("Mount etc.", b.get("extra", "")), ("Why", b.get("notes", ""))]
     if path_n is not None:
         rows[5:5] = skill_rows(b, path_n)
     dl = "".join(f"<dt>{k}</dt><dd>{v}</dd>" for k, v in rows if v and v != "—")
-    return (f'<div class="card" id="{escape(name.lower().replace(" ", "-"))}">'
-            f'<div class="card-head">{avatar(name)}<div>'
-            f"<h3>{escape(name)}{tag}</h3>"
-            f'<div class="sub">{cn} · Game8 tier {tier}</div></div></div>'
-            f'<ol class="steps">{steps}</ol><dl>{dl}</dl></div>')
+    return f'<ol class="steps">{steps}</ol><dl>{dl}</dl>'
+
+
+def char_href(name, up=""):
+    return f"{up}characters/{slug(name)}.html"
+
+
+def char_link(name, up="", frag=""):
+    return f'<a href="{char_href(name, up)}{frag}">{escape(name)}</a>'
+
+
+def mini_card(name, line, href, up="../"):
+    """Compact linked card: portrait, name, one line of build summary."""
+    tier, cn, *_ = UNITS[name]
+    return (f'<a class="mini" href="{href}">{avatar(name, up)}<span><b>{escape(name)}</b> '
+            f'<span class="meta">{cn}</span><br><span class="meta">{line}</span></span></a>')
+
+
+def anchor(name):
+    return char_link(name)
+
+
+def render_walkthrough(p):
+    """Recruit and bond walkthrough for one path, if the plan has one."""
+    n, key = p["n"], p["lord"]
+    w = WALKTHROUGH.get(n)
+    if not w:
+        return ""
+    lord = LORDS[key]["name"]
+    rules = "".join(f"<li>{r}</li>" for r in w["rules"])
+    rec = "".join(
+        f"<tr><td>{anchor(u)}</td><td>{a}</td><td>{s_}</td><td>{r}</td><td>{escape(item)}</td>"
+        f"<td>{escape(how)}</td><td><b>{ch}</b></td></tr>"
+        for u, a, s_, r, item, how, ch in RECRUIT.get(n, []))
+    chapters = ""
+    for ch, turns, dates, renown, steps in w["chapters"]:
+        meta = " · ".join(x for x in (turns, dates, f"expected Renown {renown}" if renown != "—" else "") if x and x != "—")
+        chapters += (f"<h3>{ch} <span class=\"meta\">{meta}</span></h3><ul>"
+                     + "".join(f"<li>{st}</li>" for st in steps) + "</ul>")
+
+    # Extra bonds: paired endings touching this path, and the lord's Part III squad-mates.
+    pairing, squad, paths, _ = best_pairing()
+    here = {b["unit"] for b in BUILDS[n]}
+    chosen = {frozenset(e[:2]) for e in pairing}
+    extra = []
+    for a, b, sc, rom in sorted(pairing, key=lambda e: -((e[0] in here) + (e[1] in here))):
+        if a in here or b in here:
+            rivals = sorted({other for x in (a, b) for (e1, e2, _) in ENDINGS if x in (e1, e2)
+                             for other in [f"{x}–{e2 if e1 == x else e1}"]
+                             if frozenset((e1, e2)) not in chosen and "Eshmel" not in (e1, e2)})
+            keep = f" Keep it above {', '.join(rivals)}." if rivals else ""
+            where = "both are here" if a in here and b in here else "only one of them is on this path; raise it with meals and gifts"
+            extra.append(f"<b>{escape(a)} + {escape(b)}</b> ({'romantic' if rom else 'platonic or vague'} ending; {where}): "
+                         f"get them to A support and watch the conversation.{escape(keep)}")
+    lord_squad = squad.get(lord)
+    mates = [u["unit"] for sq in PART3 if sq["squad"] == lord_squad for u in sq["units"]]
+    away = [m for m in mates if m not in here and m != lord and m not in PART3_ONLY_NAMES]
+    if away:
+        extra.append(f"<b>Part III squad-mates</b> ({escape(lord_squad)}): {', '.join(escape(m) for m in away)} fight next to {lord} "
+                     f"in Part III but aren't recruited on this path. A few meals with {lord} now give side-by-side support buffs later.")
+    extra.append("Three-person meals: inviting both partners of a pair together may also raise support between the two guests. "
+                 "That isn't confirmed, so check the support screen after one meal before relying on it.")
+    extra.append("Don't overshoot: a unit's ending goes to whoever they share the most support points with.")
+    shopping = "".join(f"<tr><td>{escape(a)}</td><td>{escape(b)}</td><td>{escape(c)}</td></tr>" for a, b, c in w["shopping"])
+    notes = "".join(f"<li>{x}</li>" for x in w["notes"])
+    return f"""
+<h2>Recruit and bond walkthrough</h2>
+<ul>{rules}</ul>
+<h3>Who, what and when</h3>
+<div class="table-wrap"><table>
+<tr><th>Unit</th><th>Appears</th><th>Support</th><th>Renown</th><th>Item or task</th><th>Where / how</th><th>Recruit in</th></tr>
+{rec}
+</table></div>
+{chapters}
+<h3>Extra bonds (from Ch8, once recruiting is done)</h3>
+<p>Spare meal seats are worth spending only on these. Raising {lord}'s support with a unit doesn't help recruit them on another lord's path: that checks support with that path's lord.</p>
+<ul>{"".join(f"<li>{x}</li>" for x in extra)}</ul>
+<h3>Shopping list</h3>
+<div class="table-wrap"><table><tr><th>Item</th><th>Where</th><th>Cost</th></tr>{shopping}</table></div>
+<p class="meta">Cai's kindness quests pay 550–7,000G each, so gold isn't the limit; Support 3 is.</p>
+<h3>Caveats</h3>
+<ul>{notes}</ul>
+"""
 
 
 def render_path(p):
     key = p["lord"]
     builds = BUILDS[p["n"]]
     rows = "".join(
-        f"<tr><td><a href=\"#{escape(b['unit'].lower().replace(' ', '-'))}\">{escape(b['unit'])}</a></td>"
+        f"<tr><td>{char_link(b['unit'], frag='#path-' + str(p['n']))}</td>"
         f"<td>{b.get('join', '')}</td><td>{escape(b['steps'][-1][0])}</td><td>{escape(b.get('role', ''))}</td>"
         f"<td>{'final' if b.get('copy') == 'final' else 'early copy' if b.get('copy') == 'early' else ''}</td></tr>"
         for b in builds
@@ -278,6 +363,7 @@ def render_path(p):
 <div class="warn">{p['why']}</div>
 <h2>Checklist</h2>
 <ul>{checklist}</ul>
+{render_walkthrough(p)}
 <h2>Roster ({len(builds)} units)</h2>
 <div class="table-wrap"><table>
 <tr><th>Unit</th><th>Joins / recruit</th><th>Ends Part I as</th><th>Role</th><th>Copy</th></tr>
@@ -285,10 +371,14 @@ def render_path(p):
 </table></div>
 <p class="meta">Class timing follows Game8's ideal levels: Specialty at Lv20 / Renown 4, Advanced at Lv35 / Renown 8. Megaira refreshes one advanced certificate per chapter (PlayBlackBox), so open it early. Recruit early where you can: units scouted later join at a higher level with weaker stats.</p>
 <h2>Builds</h2>
-<div class="cards">{''.join(build_card(b, p['n']) for b in builds)}</div>
+<p class="meta">Each character's full build (class steps, levelling, masteries, equip order, gifts) is on their own page.</p>
+<div class="cards compact">{''.join(mini_card(b['unit'], ' → '.join(c for c, _ in b['steps']) + copy_tag(b), char_href(b['unit']) + f"#path-{p['n']}") for b in builds)}</div>
 """
     return page(f"Path {p['n']} {LORDS[key]['name']}", body)
 
+
+PART3_ONLY_NAMES = {"Eshmel", "Hong Hua", "Troy", "Bertrand", "Talimun", "Anatolia", "Orchel",
+                    "Centurio", "Aswan", "Tahonia", "Klapka", "Creek", "Nathan"}
 
 JOIN_CLASS = {"Eshmel": "Guardian", "Hong Hua": "Ovate", "Troy": "War Monk", "Bertrand": "Warrior",
               "Talimun": "Ovate", "Anatolia": "Ovate", "Orchel": "Bishop", "Centurio": "Dreadnought",
@@ -312,7 +402,7 @@ def carried_class(unit, merge):
     return None, ""
 
 
-def part3_card(u, squad):
+def part3_build(u, squad):
     unit = u["unit"]
     tier, cn, abil, boons, banes = UNITS[unit]
     merge = u.get("merge")
@@ -332,24 +422,27 @@ def part3_card(u, squad):
     b = {"unit": unit, "join": f"Squad {squad}", "steps": steps, "gear": u.get("gear", ""), "carry": carry,
          "extra": merge_txt, "notes": u.get("note", ""), "copy": "final" if merge else None,
          "train": " · ".join(f"{c}: {CLASSES[c][1]}" for c, _ in steps[-2:] if CLASSES[c][0] in ("Master", "Divine"))}
-    return build_card(b, "III")
+    return b
 
 
 def render_part23():
     p2_notes = "".join(f"<li>{n}</li>" for n in PART2["notes"])
-    p2_cards = "".join(build_card({**b, "join": "Part II"}, 4) for b in PART2["builds"])
+    p2_cards = "".join(mini_card(b["unit"], " → ".join(c for c, _ in b["steps"]), char_href(b["unit"]) + "#part-2")
+                       for b in PART2["builds"])
     in_p3 = {u["unit"] for sq in PART3 for u in sq["units"]}
     bench = [b["unit"] for n in (1, 2, 3, 4) for b in BUILDS[n] if b["unit"] not in in_p3]
     bench = sorted(set(bench), key=bench.index)
     squads = ""
     for sq in PART3:
-        squads += (f"<h3>Squad {escape(sq['squad'])}</h3>"
-                   f"<div class=\"cards\">{''.join(part3_card(u, sq['squad']) for u in sq['units'])}</div>")
+        cards = "".join(mini_card(u["unit"], escape(u["master"]) + (f" → {escape(u['divine'])}" if u.get("divine") else "")
+                                  + (' <span class="tag-final">merged</span>' if u.get("merge") else ""),
+                                  char_href(u["unit"]) + "#part-3") for u in sq["units"])
+        squads += f"<h3>Squad {escape(sq['squad'])}</h3><div class=\"cards compact\">{cards}</div>"
     body = f"""
 <h1>Part II and Part III</h1>
 <h2>Part II on {lord_span(PART2['route'])} (Hard)</h2>
 <ul>{p2_notes}</ul>
-<div class="cards">{p2_cards}</div>
+<div class="cards compact">{p2_cards}</div>
 <h2>Part III (Hard): five squads of eight</h2>
 <ul>
 <li>You start with 2 squads and unlock up to 5. Squads A and B are the core; C–E fill in as they open.</li>
@@ -357,7 +450,7 @@ def render_part23():
 <li>Merges here: Mu (four copies, three merges), Guzran, Esmeralda (about 1,500 shards). If shards are tight, Game8 suggests spending them on Boons of Salvation instead; merge Mu and Guzran first.</li>
 <li>After merging, don't restart the stage, or the shards are lost (CN).</li>
 <li>Master classes need Lv45 and the matching temple restoration where noted. Divine classes open in Section 4; each needs its licence item from the Temple of the Diadem (keys: Heretics' Cave, far east Cougar Woodlands, Giant's-Print Foot, Enno Isle, Sand-Shadow Fort). Only one unit per Divine class.</li>
-<li>Bench (already used in Part I; rotate in as needed): {', '.join(bench)}.</li>
+<li>Bench (already used in Part I; rotate in as needed): {', '.join(char_link(b) for b in bench)}.</li>
 <li>Part III is a hit-rate game (CN): fliers are everywhere and dodge well, so stack bow-hit bonuses and accuracy over raw Str/Mag. Collect several Cleansing Blades for Netherworld barriers.</li>
 </ul>
 {squads}
@@ -377,7 +470,7 @@ def render_skills():
             m = MASTERY.get(cls, ("", ""))
             crows += (f"<tr><td>{escape(cls)}</td><td>{CLASS_CN.get(cls, '')}</td><td>{t}</td>"
                       f"<td><b>{escape(m[0])}</b><br><span class=\"meta\">{escape(m[1])}</span></td>{cells}</tr>")
-    urows = "".join(f"<tr><td>{escape(u)}</td><td>{UNITS[u][1]}</td>" + "".join(f"<td>{v}</td>" for v in g) + "</tr>"
+    urows = "".join(f"<tr><td>{char_link(u)}</td><td>{UNITS[u][1]}</td>" + "".join(f"<td>{v}</td>" for v in g) + "</tr>"
                     for u, g in UNIT_GROWTH.items())
     body = f"""
 <h1>Masteries and growth rates</h1>
@@ -487,7 +580,7 @@ def render_supports():
         return ", ".join(bits) or "Not deployed together — raise it with meals and gifts"
 
     def who(n):
-        return f'<div class="card-head">{avatar(n)}<div><b>{escape(n)}</b><br><span class="meta">{UNITS[n][1]}</span></div></div>'
+        return f'<div class="card-head">{avatar(n)}<div><b>{char_link(n)}</b><br><span class="meta">{UNITS[n][1]}</span></div></div>'
 
     rows = ""
     for a, b, sc, rom in pairing:
@@ -543,6 +636,125 @@ def render_supports():
     return page("Supports and Endings", body)
 
 
+_PAIRING = None
+
+
+def pairing_cached():
+    global _PAIRING
+    if _PAIRING is None:
+        _PAIRING = best_pairing()
+    return _PAIRING
+
+
+def uses(name):
+    """Every build of a unit: (section id, title, build dict, path_n for skill rows)."""
+    out = []
+    for p in PATHS:
+        for b in BUILDS[p["n"]]:
+            if b["unit"] == name:
+                out.append((f"path-{p['n']}", f"Path {p['n']}: {lord_span(p['lord'])} ({p['difficulty'].split(' · ')[0]})", b, p["n"]))
+    for b in PART2["builds"]:
+        if b["unit"] == name:
+            out.append(("part-2", f"Part II on {lord_span(PART2['route'])} (Hard)", {**b, "join": "Part II"}, 4))
+    for sq in PART3:
+        for u in sq["units"]:
+            if u["unit"] == name:
+                out.append(("part-3", f"Part III: Squad {escape(sq['squad'])} (Hard)", part3_build(u, sq["squad"]), "III"))
+    return out
+
+
+def ending_for(name):
+    pairing, squad, paths, has_ending = pairing_cached()
+    chosen = {frozenset(e[:2]) for e in pairing}
+    for a, b, sc, rom in pairing:
+        if name in (a, b):
+            partner = b if a == name else a
+            rivals = sorted({(e2 if e1 == name else e1) for e1, e2, _ in ENDINGS if name in (e1, e2)
+                             and frozenset((e1, e2)) not in chosen and "Eshmel" not in (e1, e2)})
+            kind = "Eshmel's pick (Support Level 5)" if "Eshmel" in (a, b) else ("romantic" if rom else "platonic or vague")
+            txt = f"{char_link(partner, '../')} — {kind} ending. Reach A support and watch the conversation."
+            if rivals:
+                txt += f" Keep it above {', '.join(char_link(r, '../') for r in rivals)}, who also have an ending with {escape(name)}."
+            return txt
+    if name in has_ending:
+        return "Their only listed ending partner is Eshmel, who is paired elsewhere in this plan. See the Supports page to swap."
+    return "No paired ending is listed on Game8 yet."
+
+
+def render_character(name):
+    tier, cn, abil, boons, banes = UNITS[name]
+    up = "../../"
+    gp = GIFT_PREFS.get(name, {})
+    home = home_lord(name)
+    u_list = uses(name)
+    used = ", ".join(f'<a href="#{sid}">{re.sub(r"<[^>]+>", "", t).split(" (")[0]}</a>' for sid, t, _, _ in u_list)
+    growth_row = "".join(f"<td>{v}</td>" for v in UNIT_GROWTH[name])
+    head = "".join(f"<th>{k}</th>" for k in STATS)
+    recruit = ""
+    for n, rows in RECRUIT.items():
+        for r in rows:
+            if r[0] == name:
+                u, a, s_, rn, item, how, ch = r
+                recruit += (f"<tr><td>Path {n} ({LORDS[PATHS[n - 1]['lord']]['name']})</td><td>{a}</td><td>{s_}</td>"
+                            f"<td>{rn}</td><td>{escape(item)}</td><td>{escape(how)}</td><td><b>{ch}</b></td></tr>")
+    recruit_html = (f'<h2>Recruiting</h2><div class="table-wrap"><table><tr><th>Path</th><th>Appears</th><th>Support</th>'
+                    f'<th>Renown</th><th>Item or task</th><th>Where / how</th><th>Recruit in</th></tr>{recruit}</table></div>'
+                    if recruit else "")
+    builds = ""
+    for sid, title, b, pn in u_list:
+        builds += f'<section class="card" id="{sid}"><h2>{title}{copy_tag(b)}</h2>{build_details(b, pn)}</section>'
+    profile = [("Chinese name", cn), ("Game8 tier", tier), ("Used in", used),
+               ("Personal abilities", escape(abil)), ("Boons", escape(boons)), ("Banes", escape(banes)),
+               ("Likes", escape(gp.get("likes", ""))), ("Interests", escape(gp.get("interests", "")))]
+    dl = "".join(f"<dt>{k}</dt><dd>{v}</dd>" for k, v in profile if v)
+    gifts = ""
+    if gp.get("loved") or gp.get("liked"):
+        gifts = "<h2>Gifts they like</h2><dl class=\"gifts\">"
+        if gp.get("loved"):
+            gifts += f"<dt>Loved</dt><dd>{escape(gp['loved'])}</dd>"
+        if gp.get("liked"):
+            gifts += f"<dt>Really liked</dt><dd>{escape(gp['liked'])}</dd>"
+        gifts += ("</dl><p class=\"meta\">Loved gifts give the most support; a gift on their birthday always gets the best reaction "
+                  "(Game8 gift guide).</p>")
+    else:
+        gifts = "<h2>Gifts they like</h2><p>Game8's gift guide lists no gift preferences for this character.</p>"
+    body = f"""
+<div class="card-head">{avatar(name, up, large=True)}<div>
+<h1>{escape(name)}</h1>
+<p class="meta">{cn} · Game8 tier {tier}{f" · first used on {lord_span(home)}'s path" if home else ""}</p>
+</div></div>
+<dl class="profile">{dl}</dl>
+<h2>Growth rates</h2>
+<div class="table-wrap"><table><tr>{head}</tr><tr>{growth_row}</tr></table></div>
+<p class="meta">Character growths (Keengamer); add the class modifier from the <a href="../skills.html">Skills page</a>.</p>
+{gifts}
+<h2>Paired ending</h2>
+<p>{ending_for(name)}</p>
+{recruit_html}
+<h2>Builds</h2>
+{builds or "<p>Not used in this plan.</p>"}
+"""
+    return page(f"{name} — Fortune's Weave build", body, depth=2)
+
+
+def render_characters_index():
+    groups = [("Lords", [n for n in ("Cai", "Dietrich", "Theodora", "Leda", "Eshmel")])]
+    seen = {n for _, ns in groups for n in ns}
+    for p in PATHS:
+        ns = [b["unit"] for b in BUILDS[p["n"]] if b["unit"] not in seen and home_lord(b["unit"]) == p["lord"]]
+        seen |= set(ns)
+        groups.append((f"First used on Path {p['n']}: {lord_span(p['lord'])}", ns))
+    groups.append(("Part II and Part III joiners", [n for n in UNITS if n not in seen]))
+    body = "<h1>Characters</h1><p class=\"meta\">Every unit in the plan, with all of their builds, growths, gifts and paired ending on one page.</p>"
+    for title, ns in groups:
+        cards = ""
+        for n in ns:
+            bits = [re.sub(r"<[^>]+>", "", t).split(":")[0] for _, t, _, _ in uses(n)]
+            cards += mini_card(n, " · ".join(dict.fromkeys(bits)), f"{slug(n)}.html", "../../")
+        body += f"<h2>{title}</h2><div class=\"cards compact\">{cards}</div>"
+    return page("Characters", body, depth=2)
+
+
 def coverage():
     """Where each unit and class is used. Returns (unit_map, class_map)."""
     unit_map, class_map = {}, {}
@@ -581,7 +793,7 @@ def render_index():
     urows = ""
     for name in UNITS:
         cols = "".join(cell(name, n) for n in (1, 2, 3, 4, "II", "III"))
-        urows += f"<tr><td>{escape(name)}</td><td>{UNITS[name][0]}</td>{cols}</tr>"
+        urows += f"<tr><td>{char_link(name)}</td><td>{UNITS[name][0]}</td>{cols}</tr>"
 
     crows = ""
     for tier in TIER_ORDER:
@@ -600,7 +812,7 @@ def render_index():
         for n in paths:
             b = next(b for b in BUILDS[n] if b["unit"] == u)
             cells.append(f"{lord_span(PATHS[n - 1]['lord'])}: {' → '.join(c for c, _ in b['steps'])}")
-        reuse_rows += f"<tr><td>{escape(u)}</td><td>{'<br>'.join(cells)}</td></tr>"
+        reuse_rows += f"<tr><td>{char_link(u)}</td><td>{'<br>'.join(cells)}</td></tr>"
 
     body = f"""
 <h1>Fortune's Weave — 100% team plan</h1>
@@ -688,6 +900,12 @@ def check():
             assert b["unit"] in UNITS, f"unknown unit {b['unit']}"
     divine = [u["divine"] for sq in PART3 for u in sq["units"] if u.get("divine")]
     assert len(divine) == len(set(divine)), "a Divine class is assigned twice"
+    for n, rows in RECRUIT.items():
+        lord = LORDS[PATHS[n - 1]["lord"]]["name"]
+        planned = {b["unit"] for b in BUILDS[n]} - {lord}
+        listed = {r[0] for r in rows}
+        if planned != listed:
+            print(f"walkthrough {n} mismatch: missing {sorted(planned - listed)}, extra {sorted(listed - planned)}")
     sizes = [len(sq["units"]) for sq in PART3]
     return missing_units, missing_classes, sizes
 
@@ -701,6 +919,10 @@ def main():
     (OUT / "part-2-3.html").write_text(render_part23())
     (OUT / "skills.html").write_text(render_skills())
     (OUT / "supports.html").write_text(render_supports())
+    CHARS.mkdir(exist_ok=True)
+    for name in UNITS:
+        (CHARS / f"{slug(name)}.html").write_text(render_character(name))
+    (CHARS / "index.html").write_text(render_characters_index())
     sync_static_navs()
     print("missing units:", missing_units)
     print("missing classes:", missing_classes)

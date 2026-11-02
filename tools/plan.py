@@ -582,3 +582,109 @@ ESHMEL_NOTES = [
     "The Trident (Eshmel's Game8 divine class) is assigned to Theodora here, so Eshmel takes a Master class instead.",
     "Paired ending: at the end you choose among characters at Support Level 5 with Eshmel (Game8, howtovideogame). No guide reports a gender restriction on who can be chosen, and endings are mostly not explicitly romantic (TheGamer).",
 ]
+
+# Recruit and bond walkthroughs per path. Chapter dates, free-time turns and
+# per-quest Renown come from AppMedia's Cai route chart, Game8 and RPG Site.
+# Renown needed per level isn't published, so "renown" is an estimate from when
+# Renown-gated content opens on the route (Ch5 R4 mentoring, Ch7 R7 theater, Ch8 R8 thermae).
+RECRUIT = {
+    1: [
+        # unit, appears, support, renown, item or task, where / how, recruit chapter
+        ("Tialla", "Ch1", "—", "—", "Joins automatically", "—", "Ch1"),
+        ("Peter", "Ch1", "—", "—", "Joins automatically", "—", "Ch1"),
+        ("Guzran", "Ch3", "1", "2", "Tutorial recruit", "Gift a Mature Ghosh, then clear 'Lost Hair Clip' for Renown", "Ch3"),
+        ("Ultand", "Ch6", "—", "—", "Joins automatically", "—", "Ch6"),
+        ("Nydine", "Ch3", "1", "6", "2 Bronze Axes", "Dagsion armory, about 500G each", "Ch6"),
+        ("Majide", "Ch5", "2", "5", "Answer 'I need you' three times", "He may end the talk early; just retry", "Ch5–6"),
+        ("Ninae", "Ch3", "3", "6", "1 Paradise Fish (very rare)", "Fish at Lake Brontes in the far south; Spring Tide days raise the odds", "Ch6–7"),
+        ("Seteth", "Ch3", "3", "6", "Seteth's Request", "Once his conditions are met, talk to him, beat the Dusk-Damned Piccolos at Mount Ouranos (far south), talk again", "Ch6–7"),
+        ("Dadao", "Ch5", "3", "7", "2 Kothar Gar (common fish)", "Kothar Lake south of Dagsion, or Alcineus Span", "Ch7"),
+        ("Mu", "Ch4", "3", "9", "3 Glirmosa", "Wandering plant merchant (seen in Messilina), 4,000G each; or buy one and grow the rest on the farm", "Ch9–10"),
+        ("Peppe", "Ch3", "1", "9", "Clear Bertrand's paralogue", "Talk to Gabriel in Dagsion between 9/17 and 9/25 (Ch10)", "Ch10"),
+    ],
+}
+
+WALKTHROUGH = {
+    1: {
+        "rules": [
+            "Recruit support is with Cai. Supports are saved globally, never drop, and carry into Part III.",
+            "Give each target one cheap gift first: it forms the bond, which unlocks meals and the Recruit option. Gifts and meals also work on units you haven't recruited.",
+            "Inn meals are the main source of support: up to 3 meals a week, each with Cai plus 2 guests. The menu resets on Sunday.",
+            "Meal seats are the bottleneck on this path: four recruits need Support 3 (Ninae, Seteth, Dadao, Mu). Don't spend seats on anyone else until they're done.",
+            "Scouting closes before the Ch12 main battle (11/27).",
+            "Chapter restarts keep support points: on a long chapter, eat three meals, auto-activity to the next Sunday, repeat, then restart.",
+        ],
+        "chapters": [
+            ("Ch1–2", "no free time", "—", "—", [
+                "Tialla and Peter join in Ch1.",
+                "Ch2: chasing the thief opens the Galen Fortress Ruins (a beast-hunting bow in a chest). Castor gives 1,500G on reaching Dagsion. Keep the gold.",
+            ]),
+            ("Ch3", "32 turns", "about 2/20–2/28", "2–3", [
+                "<b>Guzran:</b> gift a Mature Ghosh, clear 'Lost Hair Clip' (Niraga Mine, +100 Renown), then recruit him.",
+                "<b>Bond gifts:</b> one cheap gift each to Ninae, Seteth, Nydine and Peppe.",
+                "<b>Meals:</b> start with Cai + Ninae + Seteth, the two earliest Support 3 targets. 2/25 is a half-price meal day.",
+                "<b>Shopping:</b> 2 Bronze Axes at the Dagsion armory for Nydine.",
+                "<b>Renown:</b> clear the three Cai-only kindness quests (Lost Hair Clip, Furious Vengeance, The Fabled Sunset) and both small side quests, about 380.",
+                "<b>Don't recruit Noctula here:</b> an early recruit on Cai can lock 'Ursa's Right Claw'.",
+            ]),
+            ("Ch4", "24 turns", "3/1–3/7", "3–4", [
+                "<b>Mu:</b> gift to bond. She loves Candy Crystals, History of a Master and Portrait of Yu Phas.",
+                "<b>Meals:</b> keep going with Ninae and Seteth.",
+                "<b>Renown:</b> Ch4's quests give about 350.",
+                "<b>Glirmosa:</b> if you spot the plant merchant, buy one now so you can farm the rest from Ch6.",
+            ]),
+            ("Ch5", "104 turns", "3/15–4/10", "4–5", [
+                "<b>Bond gifts:</b> Majide and Dadao.",
+                "<b>Majide:</b> recruit as soon as you're at Support 2 / Renown 5.",
+                "<b>Meals:</b> rotate the six weekly seats across Ninae, Seteth, Dadao and Mu, plus Majide until he's at Support 2. Cover gaps with loved gifts (Strategy Manuscript and Tales of Adventure work for Ninae; Poems of the Greats for Dadao).",
+                "<b>Items:</b> fish 2 Kothar Gar at Kothar Lake for Dadao.",
+                "<b>Renown:</b> about 740, the biggest so far, including capturing 2 wild Ornius (+200).",
+            ]),
+            ("Ch6", "120 turns", "4/20–5/20", "6", [
+                "Ultand joins.",
+                "<b>Recruit at Renown 6:</b> Nydine (2 Bronze Axes), and Majide if you haven't yet.",
+                "<b>Ninae and Seteth:</b> once each hits Support 3, fish the Paradise Fish and do Seteth's Request. Both are in the far south, so combine the trip, or wait for the Ch7 carriage.",
+                "<b>Glirmosa:</b> use the farming tutorial to plant it.",
+                "<b>Renown:</b> about 670.",
+            ]),
+            ("Ch7", "120 turns", "6/9–7/9", "about 7 (the cap around here)", [
+                "<b>Carriage:</b> clear the kindness quest 'Something Not in the Capital' (a special axle at Megaera, +130). The shared carriage makes the Lake Brontes and Mount Ouranos trips much shorter.",
+                "<b>Recruit:</b> Dadao (2 Kothar Gar), plus Ninae and Seteth if you haven't yet.",
+                "<b>Castor's mentoring (Renown 7):</b> deliver 2 Angelica at Star-Born Garden to unlock Caladrius, Cai's planned class.",
+                "<b>Renown:</b> about 750.",
+            ]),
+            ("Ch8", "172 turns (longest)", "7/20–9/1", "8", [
+                "<b>Mu:</b> use the restart trick to finish her Support 3 if she's still short.",
+                "<b>Spare meal seats now go to bonds outside the recruit list</b> — see 'Extra bonds' below.",
+                "<b>Aurora's mentoring (Renown 8):</b> defeat the temple soldiers at Fortuna Temple to unlock Dragoon, which Seteth needs.",
+                "<b>Renown:</b> about 640.",
+            ]),
+            ("Ch9", "32 turns", "9/3–9/11", "8–9", [
+                "Clear Ch9's quests (about 280 Renown) to reach Renown 9.",
+                "Make sure you have 3 Glirmosa.",
+            ]),
+            ("Ch10", "120 turns", "from 9/17", "9–10", [
+                "<b>Peppe:</b> be in Dagsion on 9/17 and talk to Gabriel to start Bertrand's paralogue (+150 Renown), then recruit Peppe at Support 1 / Renown 9. <b>Missing this window loses Peppe on this path.</b>",
+                "<b>Mu:</b> recruit at Support 3 / Renown 9 with the 3 Glirmosa.",
+                "<b>Optional:</b> Talimun's paralogue (9/18–9/22 or 10/1–10/10) and Anna's (9/24–10/5; opens Anna's shop) for Renown and completion.",
+                "<b>Bertrand's mentoring (Renown 10):</b> unlocks Troubadour, Ultand's planned class.",
+            ]),
+            ("Ch11", "28 turns", "about 10/16–10/22", "10", [
+                "Optional Orchel's paralogue (10/18–10/20) for Renown. Pick up anyone you've missed.",
+            ]),
+            ("Ch12", "92 turns", "until 11/27", "10+", [
+                "Last chance to recruit anyone you've missed: scouting ends at the main battle.",
+            ]),
+        ],
+        "shopping": [
+            ("2 Bronze Axes", "Dagsion armory", "about 1,000G"),
+            ("3 Glirmosa", "Wandering plant merchant", "12,000G, or 4,000G if you buy one and grow the rest"),
+            ("2 Kothar Gar, 1 Paradise Fish", "Fishing", "free"),
+        ],
+        "notes": [
+            "Renown per level isn't published; the Renown column is an estimate from when the route opens Renown-gated content.",
+            "Seteth's Request: AppMedia lists it under Ch4 and says it only starts once he meets his conditions; another site lists it as a Ch7 quest.",
+            "No source gives how many meals or gifts each Support level takes.",
+        ],
+    },
+}

@@ -88,58 +88,12 @@ ENDINGS = [
     ("Eshmel", "Zarcone", False),
 ]
 
-# Favourite gifts (Game8 Gift Giving Guide, archives/623690, work in progress).
-# "Loved" where listed, otherwise the start of the "Really Liked" list (marked RL).
-GIFTS = {
-    "Cai": "RL: Arrowhead Gem, Crimson Ghosh, Sharp Fishhook",
-    "Dietrich": "RL: Arrowhead Gem, Board-Game Tactics, Crimson Ghosh, Honey Pastries, Training Weights",
-    "Theodora": "RL: Dagda Beard Grass, Eastern Black Silk, Eastern Tea Leaves, Horse-Grooming Kit",
-    "Leda": "Eastern Black Silk, Eastern Earrings, Tales of Adventure, Volcano Ghosh",
-    "Tialla": "Eastern Board Game, History of a Master, Morfis Almanac, Portrait of Yu Phas, Tome from Away",
-    "Peter": "Arrowhead Gem, Candy Crystals, Decorative Arrows, History of a Master, Portrait of Yu Phas",
-    "Ultand": "History of a Master, Legendary Garum, Portrait of Yu Phas, Rancid Garum",
-    "Fabio": "Tales of Adventure, Volcano Ghosh",
-    "Mikaela": "Tales of Adventure, Volcano Ghosh",
-    "Esmeralda": "Eastern Earrings, Tales of Adventure",
-    "Bonaventure": "Crimson Ghosh, Strategy Manuscript, Volcano Ghosh",
-    "Tobias": "Strategy Manuscript, Tales of Adventure, Volcano Ghosh",
-    "Lysander": "RL: Dagda Beard Grass, Eastern Tea Leaves, Horse-Grooming Kit, Mane Ornament, Wing Fletching",
-    "Lilian": "Eastern Earrings, Eastern Tea Leaves, Poems of the Greats, Strategy Manuscript, Tales of Adventure",
-    "Buccar": "Crimson Ghosh, Dual Fish Knives, Legendary Garum, Rancid Garum",
-    "Sirocco": "Arrowhead Gem, Crimson Ghosh, Flower Painting, History of a Master, Poems of the Greats, Volcano Ghosh",
-    "Mu": "Candy Crystals, History of a Master, Portrait of Yu Phas",
-    "Olympia": "Blue-Rose Bouquet, Eastern Earrings, Flower Painting, History of a Master, Tales of Adventure",
-    "Ursula": "Flower Painting, History of a Master, Pegasus Panorama, Portrait of Yu Phas",
-    "Diego": "Arrowhead Gem, Decorative Arrows",
-    "Dante": "History of a Master, Morfis Almanac, Poems of the Greats, Portrait of Yu Phas, Tome from Away",
-    "Simon": "Ceremonial Spear, History of a Master, Portrait of Yu Phas, Rancid Garum",
-    "Ninae": "Strategy Manuscript, Tales of Adventure",
-    "Nezha": "Strategy Manuscript, Tales of Adventure",
-    "Nydine": "Strategy Manuscript, Tales of Adventure",
-    "Noctula": "Strategy Manuscript, Tales of Adventure",
-    "Inyoni": "Strategy Manuscript, Tales of Adventure",
-    "Guzran": "Strategy Manuscript, Tales of Adventure, Volcano Ghosh",
-    "Io": "RL: Arrowhead Gem, Board-Game Tactics, Common Coffee, Horse-Grooming Kit, Training Weights",
-    "Catania": "Eastern Black Silk, Eastern Earrings, Eastern Tea Leaves, Tales of Adventure",
-    "Benditz": "Eastern Black Silk, Eastern Earrings, Eastern Tea Leaves, Strategy Manuscript, Tales of Adventure",
-    "Alexandra": "Eastern Earrings, Strategy Manuscript, Tales of Adventure",
-    "Yang Jie": "Eastern Tea Leaves, Poems of the Greats, Strategy Manuscript, Tales of Adventure, Volcano Ghosh",
-    "Sofia": "Blue-Rose Bouquet, Dual Fish Knives, Volcano Ghosh",
-    "Majide": "Arrowhead Gem, Crimson Ghosh, Dual Fish Knives",
-    "Zarcone": "Eastern Tea Leaves",
-    "Goliath": "Strategy Manuscript, Volcano Ghosh",
-    "Jester": "Arrowhead Gem",
-    "Ludia": "Eastern Black Silk, Eastern Earrings, Eastern Love Story, Strategy Manuscript, Tales of Adventure",
-    "Fianna": "Arrowhead Gem, Blue-Rose Bouquet, Volcano Ghosh",
-    "Loretta": "RL: Arrowhead Gem, Crimson Ghosh, Honey Pastries, Pastry Cookbook, Training Weights",
-    "Halvin": "Eastern Black Silk, Eastern Earrings",
-    "Dadao": "Poems of the Greats, Strategy Manuscript, Tales of Adventure",
-    "Peppe": "Arrowhead Gem",
-    "Gaitz": "Ceremonial Spear, Flower Painting, History of a Master, Morfis Almanac, Portrait of Yu Phas",
-    "Sha Lan": "Special \"Medicine\"",
-    "Jasmine": "RL: Arrowhead Gem, Crimson Ghosh, Dual Fish Knives, Honey Pastries",
-    "Hong Hua": "Fodlan Tea, History of a Master, Portrait of Yu Phas (unverified)",
-}
+# Short favourite-gift line per unit for tables: Loved gifts, else the start of Really Liked.
+from gifts import GIFT_PREFS  # noqa: E402
+
+GIFTS = {u: (d["loved"] or ("RL: " + ", ".join(d["liked"].split(", ")[:5]) if d["liked"] else ""))
+         for u, d in GIFT_PREFS.items() if d["loved"] or d["liked"]}
+
 
 # Small tie-breaks on top of the squad/path score.
 PREFER = {
